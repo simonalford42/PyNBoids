@@ -8,14 +8,14 @@ Uses numpy array math instead of math lib. github.com/Nikorasu/PyNBoids
 Copyright (c) 2021  Nikolaus Stromberg  nikorasu85@gmail.com
 '''
 FLLSCRN = True          # True for Fullscreen, or False for Window
-BOIDZ = 100             # Number of Boids
-WIDTH = 1200            # Window Width (1200)
-HEIGHT = 800            # Window Height (800)
+BOIDZ = 3             # Number of Boids
+WIDTH = 700            # Window Width (1200)
+HEIGHT = 400            # Window Height (800)
 PRATIO = 5              # Pixel Ratio for surfArray
 SPEED = 4               # Movement speed
 FADE = 30               # surfArray fade rate, controls tail length
 WRAP = False            # False avoids edges, True wraps to other side
-FPS = 60                # 30-90
+FPS = 30                # 30-90
 SHOWFPS = False         # frame rate debug
 
 class BoidPix():
@@ -27,7 +27,9 @@ class BoidPix():
         self.color = pg.Color(0)  # preps color so we can use hsva
         self.color.hsva = (randint(0, 360), 90, 90)
         self.ang = randint(0, 360)  # random start ang and pos
-        self.pos = (randint(10, self.maxW - 10), randint(10, self.maxH - 10))
+        buffer = 70
+        assert buffer < min(self.maxW, self.maxH) - buffer
+        self.pos = (randint(buffer, self.maxW - buffer), randint(buffer, self.maxH - buffer))
         self.dir = pg.Vector2(1, 0).rotate(self.ang)
 
     def update(self, dt, speed, ejWrap):
@@ -117,6 +119,8 @@ def main():
     clock = pg.time.Clock()
     if SHOWFPS : font = pg.font.Font(None, 30)
 
+    x, v, a = [],[],[]
+    v_t = None
     # Main Loop
     while True:
         for e in pg.event.get():
@@ -126,7 +130,28 @@ def main():
         dt = clock.tick(FPS) / 100
         screen.fill(0)
         # update all the boids
-        for n in range(BOIDZ): boidList[n].update(dt, SPEED, WRAP)
+        for n in range(BOIDZ):
+            boidList[n].update(dt, SPEED, WRAP)
+
+        x_t = np.array([boidList[n].pos for n in range(BOIDZ)])
+        prev_v_t = v_t
+        v_t = np.array([boidList[n].dir for n in range(BOIDZ)])
+
+        if prev_v_t is not None:
+            a_t = (v_t - prev_v_t) / dt
+
+            x.append(x_t)
+            a.append(a_t)
+            v.append(v_t)
+
+        # assert x_t.shape == (BOIDZ, 2)
+        if len(x) == 1000:
+            x = np.array(x)
+            v = np.array(v)
+            a = np.array(a)
+            arr = np.stack([x, v, a], axis=1)
+            np.save("boids_data.npy", arr)
+            assert False
 
         drawImg = drawLayer.update(dt)
         # resizes and draws the surfArray to screen
